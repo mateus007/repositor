@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 SCRIPT=${0##*/}
 IFS=$'\n'
 
@@ -16,8 +16,8 @@ Global Commands:
   --help             display this help message
   --version          display the repositor script's version
 
-Module Commands:
-  $script [repository] <command>
+Repository Commands:
+  $SCRIPT [repository] <command>
 ------------------------------
   clone              clone repository to repositor folder and deploy files
   update             update repository on repositor folder and deploy files
@@ -34,6 +34,37 @@ show_version(){
 # Show script usage help
 show_help(){
   echo -e "$USAGE"
+}
+
+# Initiate repositor on folder
+init_repositor(){
+
+  local BASEDIR="$1"
+
+  if [ -z "$BASEDIR" ]; then
+    BASEDIR=$(pwd)
+  fi
+
+  if [[ -n "$BASEDIR" && ! -d "$BASEDIR" ]]; then
+    echo "$BASEDIR is not a directory."
+    exit 1
+  fi
+
+  if ! mkdir .repositor; then
+    echo "Could not create .repositor directory."
+    exit 1
+  fi
+
+  cat <<EOF > repositor.conf
+# Please define here your repositories dependencies
+EOF
+
+cat <<EOF > .repositor/.gitignore
+*
+EOF
+
+  echo "Initialized Repositor Manager at $BASEDIR."
+
 }
 
 # Read configuration file on section
@@ -97,7 +128,7 @@ read_config_section(){
   done < "$REPOSITOR_CONF"
 
   if [ $HAS_SECTION -eq 0 ]; then
-    echo "Configuration not found for repository '$SECTION'"
+    echo "Configuration not found for repository '$SECTION'."
     exit 1
   fi
 
@@ -116,7 +147,7 @@ clone_repository(){
     deploy_repository_files
     echo "Done"
   else
-    echo "Error while trying to clone repository '$SECTION'"
+    echo "Error while trying to clone repository '$SECTION'."
     exit 1
   fi
 
@@ -126,14 +157,14 @@ clone_repository(){
 update_repository(){
 
   if [ ! -d "$REPOSITOR_DIR/$SECTION" ]; then
-    echo "Repository '$SECTION' do not exist"
+    echo "Repository '$SECTION' do not exist."
     exit 1
   fi
 
   cd "$REPOSITOR_DIR/$SECTION"
 
   if [ ! -d .git ]; then
-    echo "Git not found on repository '$SECTION'"
+    echo "Git not found on repository '$SECTION'."
     exit 1
   fi
 
@@ -147,7 +178,7 @@ update_repository(){
     deploy_repository_files
     echo "Done"
   else
-    echo "Error while trying to update working copy of repository '$SECTION'"
+    echo "Error while trying to update working copy of repository '$SECTION'."
     exit 1
   fi
 
@@ -221,7 +252,7 @@ copy_file(){
   # Create parent directory
   if [ ! -d "${dest%/*}" ]; then
     if ! mkdir -p "${dest%/*}"; then
-      echo "Unable to create parent directory (${dest%/*})"
+      echo "Unable to create parent directory (${dest%/*})."
       return 1
     fi
   fi
@@ -244,7 +275,7 @@ list_repository_files(){
     # Delete spacing
     src=$(echo $src | sed 's/^ *//')
 
-    echo $src
+    echo "$src"
 
   done
 
@@ -254,14 +285,9 @@ list_repository_files(){
 ################################################
 ################################################
 
-ROOT=${PWD%/*}
-REPOSITOR_DIR="$ROOT/repositor"
-REPOSITOR_CONF="$REPOSITOR_DIR/repositor.conf"
-
-if [ ! -f "$REPOSITOR_CONF" ]; then
-  echo "Repositor configuration not found. Please define the repositor.conf file"
-  exit 1
-fi
+ROOT=${PWD}
+REPOSITOR_DIR="$ROOT/.repositor"
+REPOSITOR_CONF="$ROOT/repositor.conf"
 
 ##### GLOBAL ACTIONS
 
@@ -288,6 +314,12 @@ case "$GLOBAL_ACTION" in
     exit 0
     ;;
 
+  # Init repositor on project
+  init)
+    init_repositor "$2"
+    exit 0
+    ;;
+
   # List all installed repositories
   list)
     count=$(ls -l "$REPOSITOR_DIR" | grep -c ^d | sed 's/ //g')
@@ -295,7 +327,7 @@ case "$GLOBAL_ACTION" in
       [ -d "$REPOSITOR_DIR/$repository" ] || continue;
       echo "$repository"
     done
-    echo "$count repositories found"
+    echo "$count repositories found."
     exit 0
     ;;
 
@@ -319,6 +351,11 @@ CONFIG_BRANCH=""
 CONFIG_FILES=()
 
 # Read section configurations
+if [ ! -f "$REPOSITOR_CONF" ]; then
+  echo "Repositor configuration not found. Please define the repositor.conf file."
+  exit 1
+fi
+
 read_config_section
 
 # Handle action
@@ -350,7 +387,7 @@ case "$ACTION" in
 
   *)
     show_help
-    echo "Invalid action: $ACTION"
+    echo "Invalid action: $ACTION."
     exit 1
 
 esac

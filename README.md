@@ -1,15 +1,17 @@
 Repositor Dependency Manager
 =========
 
-Repositor is a tool to manage dependencies from multiple git repositories on your development workflow in projects.
+Repositor is a tool to manage dependencies from multiple git repositories on your projects.
 
 ## Why?
 
-We develop a lot of small projects and with this, became a pain manage dependencies on large projects that use this small projects.
+We develop a lot of small projects and with this, became a pain manage dependencies on large projects that use some small projects.
 
 Repositor try to achieve a best workflow for development using multiple repositories with no other libraries dependence like `bower` or `composer`. It is inspired by `modman` and `modgit`. It's for all development cases, in all programming languages with complete flexibility.
 
-With Repositor, you can configure which repositories your project depends and more specifically, what files and folders from this repository should be used in your project. Repositor will keep a copy of the repositories in your project (outside the main git) and distribute only the necessary files in your project so that it can be updated more easily.
+With Repositor, you can configure which repositories your project depends and more specifically, what files and folders from this repository should be used in your project - and whatever the location where they should be. Repositor will keep a copy of the repositories in your project (outside the main git) and distribute only the necessary files in your project so that it can be updated more easily.
+
+The most notable difference between `repositor` and other package managers is that with the `repositor`, you make your way around. It is you who defines which files and folders will be used in your project and where they should be inserted. Repositor fits your design, not the opposite.
 
 ## Installation
 
@@ -36,10 +38,8 @@ With Repositor, you can configure which repositories your project depends and mo
 - Start a new project
 - Init git on that project - `git init`
 - Do initial project setup
-- Create a new root folder called `repositor`
-- Go to folder `repositor`
-- Add `.gitignore` file on folder to git do not track the files inside that folder
-- Create the `repositor.conf` file with configurations for repositories
+- Init repositor on that project - `repositor init`
+- Update the `repositor.conf` file with configurations for repositories - see `example.conf`
 - Run `repositor [repository] clone` to create copy of repository and deploy files
 - Develop!
 
@@ -51,19 +51,31 @@ With Repositor, you can configure which repositories your project depends and mo
 
 ## Usage
 
+**New project**
+
     $ mkdir project
     $ cd project
     $ git init
     $ # here you will usually do the project setup
 
-    $ mkdir repositor
-    $ cd repositor
-    $ touch .gitignore
-    $ touch repositor.conf
+    $ repositor init
+    $ vim repositor.conf
     $ # configure the project dependencies on repositor.conf file
 
     $ repositor [repository] clone
-    $ # repositor [repository-2] clone
+    $ # repositor [repository-two] clone
     $ # ...
+
+**Updating a repository**
+
+    $ repositor [repository] update
+
+**Do some mess on repository code? Re-deploy**
+
+    $ repositor [repository] deploy
+
+**More commands and help**
+
+    $ repositor --help
 
 That's all! Questions?
