@@ -1,50 +1,69 @@
-Repositor
+Repositor Dependency Manager
 =========
 
-Proposed git and development workflow for projects with multiple git repositories
+Repositor is a tool to manage dependencies from multiple git repositories on your development workflow in projects.
 
-**Why?**
+## Why?
 
-We develop a lot of projects and with this, became such a pained task manage dependencies.
+We develop a lot of small projects and with this, became a pain manage dependencies on large projects that use this small projects.
 
-Repositor try to achieve a best workflow for development using multiple repositories with no other libraries dependence like `bower` or `composer`. It is inspired by `modman`, with your workflow and `Makefile`. It's for all development cases with complete flexibility.
+Repositor try to achieve a best workflow for development using multiple repositories with no other libraries dependence like `bower` or `composer`. It is inspired by `modman` and `modgit`. It's for all development cases, in all programming languages with complete flexibility.
 
-**Workflow**
+With Repositor, you can configure which repositories your project depends and more specifically, what files and folders from this repository should be used in your project. Repositor will keep a copy of the repositories in your project (outside the main git) and distribute only the necessary files in your project so that it can be updated more easily.
+
+## Installation
+
+**curl installation**
+
+    $ curl https://raw.githubusercontent.com/mateus007/repositor/master/repositor > repositor
+    $ chmod +x repositor
+    $ sudo mv repositor /usr/local/bin
+
+**wget installation**
+
+    $ wget -O repositor https://raw.githubusercontent.com/mateus007/repositor/master/repositor
+    $ chmod +x repositor
+    $ sudo mv repositor /usr/local/bin
+
+**Manual download**
+
+* Download shell script [here](https://raw.githubusercontent.com/mateus007/repositor/master/repositor)
+* Copy `repositor` file to `/usr/local/bin` (or any folder in your $PATH)
+* Run `chmod +x repositor`
+
+## Workflow
 
 - Start a new project
 - Init git on that project - `git init`
 - Do initial project setup
-- Create a new root folder called `repositories`
-- Go to folder `repositories`
+- Create a new root folder called `repositor`
+- Go to folder `repositor`
 - Add `.gitignore` file on folder to git do not track the files inside that folder
-- Clone the repositories that will be used on the new project
-- Add symbolic links for cloned files and folders in your project structure (the folder `repositories` is intended to stay away from your main project)
-- Create the `Makefile` with tasks to update, check and link the cloned repositories
+- Create the `repositor.conf` file with configurations for repositories
+- Run `repositor [repository] clone` to create copy of repository and deploy files
 - Develop!
 
-**Conventions**
+## Conventions
 
 - All cloned repositories always are remote
-- Avoid changes on files from cloned repositories. If necessary, change the cloned repository and update the repository on the project
-- Create symbolic links only for needed files. This is the main intent of the repositor workflow.
+- Avoid changes on files from cloned repositories. If necessary, change the cloned repository and after, update the repository on the project
+- Use only needed files from others repositories. This is the main intent of the repositor workflow.
 
-**Usage:**
+## Usage
 
     $ mkdir project
     $ cd project
     $ git init
     $ # here you will usually do the project setup
 
-    $ mkdir repositories
-    $ cd repositories
+    $ mkdir repositor
+    $ cd repositor
     $ touch .gitignore
+    $ touch repositor.conf
+    $ # configure the project dependencies on repositor.conf file
 
-    $ # Start cloning
-    $ git clone https://github.com/mateus007/linha-framework.git
-    $ git clone https://github.com/mateus007/angularjs-starter
-
-    $ # Now create tasks for auto pull the repositories
-    $ # Create symbolic links with ln -sf
-    $ vim Makefile
+    $ repositor [repository] clone
+    $ # repositor [repository-2] clone
+    $ # ...
 
 That's all! Questions?

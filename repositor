@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+
+VERSION="1.0.0"
+SCRIPT=${0##*/}
+IFS=$'\n'
+
+USAGE="\
+Repositor Manager ($VERSION)
+https://github.com/mateus007/repositor
+
+Global Commands:
+  $SCRIPT <command>
+------------------------------
+  init [basedir]     initialize the pwd (or [basedir]) as the repositor deploy root
+  list               list all repositories find on repositor directory
+  --help             display this help message
+  --version          display the repositor script's version
+
+Module Commands:
+  $script [repository] <command>
+------------------------------
+  clone              clone repository to repositor folder and deploy files
+  update             update repository on repositor folder and deploy files
+  deploy             (re)deploy all files from repository to project
+  files              list all files and folders deployed from repository on project
+"
+
+# Show script version number
+show_version(){
+  echo "Repositor Manager ($VERSION)"
+  echo "Fork me at https://github.com/mateus007/repositor"
+}
+
+# Show script usage help
+show_help(){
+  echo -e "$USAGE"
+}
+
+# Read configuration file on section
+read_config_section(){
+
+  local READ_SECTION=""
+  local HAS_SECTION=0
+
+  # IFS is used in "read" and we want to switch it within the loop
+  local IFS=$' \t\n'
+  local IFS_OLD="${IFS}"
+
+  while read -r line || [ -n "$line" ]
+  do
+
+    # Skip blank lines and comments
+    if [ -z "$line" -o "${line:0:1}" = ";" -o "${line:0:1}" = "#" ]; then
+      continue
+    fi
+
+    # Section marker?
+    if [[ "${line}" =~ ^\[[a-zA-Z0-9_-]{1,}\]$ ]]; then
+
+      READ_SECTION="${line#[}"
+      READ_SECTION="${READ_SECTION%]}"
+
+      if [ "$READ_SECTION" = "$SECTION" ]; then
+        HAS_SECTION=1;
+      fi
+
+      continue
+    fi
+
+    # Only read specific section
+    if [ "$READ_SECTION" != "$SECTION" ]; then
+      continue
+    fi
+
+    # Variables marker?
+    if [[ "${line}" =~ ^[a-zA-Z0-9._]{1,}[[:space:]]*= ]]; then
+
+      # split line at "=" sign
+      IFS="="
+      read -r VAR VAL <<< "${line}"
+      IFS="${IFS_OLD}"
+
+      # delete spaces
+      VAR=$(echo $VAR | sed 's/^ *//')
+      VAL=$(echo $VAL | sed 's/^ *//')
+
+      VARNAME=CONFIG_${VAR}
+
+      eval "$VARNAME=$VAL"
+
+      continue
+    fi
+
+    # Everything else is files to be deployed
+    CONFIG_FILES+=("${line}")
+
+  done < "$REPOSITOR_CONF"
+
+  if [ $HAS_SECTION -eq 0 ]; then
+    echo "Configuration not found for repository '$SECTION'"
+    exit 1
+  fi
+
+}
+
+# Clone the repository
+clone_repository(){
+
+  echo "Cloning repository '$SECTION' from URL '$CONFIG_URL'..."
+
+  local success=0
+  git clone "$CONFIG_URL" "$SECTION" && success=1
+
+  if [ $success -eq 1 ]; then
+    checkout_repository
+    deploy_repository_files
+    echo "Done"
+  else
+    echo "Error while trying to clone repository '$SECTION'"
+    exit 1
+  fi
+
+}
+
+# Update the repository from git and re-deploy files
+update_repository(){
+
+  if [ ! -d "$REPOSITOR_DIR/$SECTION" ]; then
+    echo "Repository '$SECTION' do not exist"
+    exit 1
+  fi
+
+  cd "$REPOSITOR_DIR/$SECTION"
+
+  if [ ! -d .git ]; then
+    echo "Git not found on repository '$SECTION'"
+    exit 1
+  fi
+
+  echo "Updating repository '$SECTION' from URL '$CONFIG_URL'..."
+
+  local success=0
+  git pull && git submodule update --init --recursive && success=1
+
+  if [ $success -eq 1 ]; then
+    checkout_repository
+    deploy_repository_files
+    echo "Done"
+  else
+    echo "Error while trying to update working copy of repository '$SECTION'"
+    exit 1
+  fi
+
+}
+
+# Checkout repository to specific branch
+checkout_repository(){
+
+  cd "$REPOSITOR_DIR/$SECTION"
+
+  local exists=`git show-ref refs/heads/$CONFIG_BRANCH`
+
+  if [ -n "$exists" ]; then
+    git checkout "$CONFIG_BRANCH"
+  else
+    echo "Branch '$CONFIG_BRANCH' do not exists on repository '$SECTION'!"
+    exit 1
+  fi
+
+}
+
+# Deploy defined repository files
+deploy_repository_files(){
+
+  local IFS=" "
+
+  for line in "${CONFIG_FILES[@]}"; do
+
+    read -r src dest <<< "${line}"
+
+    # Delete spacing
+    src=$(echo $src | sed 's/^ *//')
+    dest=$(echo $dest | sed 's/^ *//')
+
+    copy_file "$REPOSITOR_DIR/$SECTION/$src" "$ROOT/$dest"
+
+  done
+
+}
+
+# Copy specified file to project directory
+copy_file(){
+
+  local tmp="${ROOT//\//\\/}\\/"
+  local src="$1"
+  local dest="$2"
+
+  src=${src/\/\//\/} # Replace // with /
+  src=${src%/} # Strip trailing /
+
+  dest=${dest/\/\//\/} # Replace // with /
+  dest=${dest%/} # Strip trailing /
+
+  # Allow destination to be a dir when src is a file
+  if [ -f "$src" ] && [ -d "$dest" ]; then
+    dest="$dest/$(basename "$src")"
+  fi
+
+  # Force / if src is directory to avoid errors on cp command
+  if [ -d "$src" ]; then
+    src="$src/"
+  fi
+
+  # Force / if dest is directory to avoid errors on cp command
+  if [ -d "$dest" ]; then
+    dest="$dest/"
+  fi
+
+  echo "Copying" $(echo "$dest" | sed "s/^$tmp//g")
+
+  # Create parent directory
+  if [ ! -d "${dest%/*}" ]; then
+    if ! mkdir -p "${dest%/*}"; then
+      echo "Unable to create parent directory (${dest%/*})"
+      return 1
+    fi
+  fi
+
+  cp -R "$1" "$2"
+
+}
+
+# List deployed repository files
+list_repository_files(){
+
+  echo "Deployed folder and files of '$SECTION' repository:"
+
+  local IFS=" "
+
+  for line in "${CONFIG_FILES[@]}"; do
+
+    read -r src dest <<< "${line}"
+
+    # Delete spacing
+    src=$(echo $src | sed 's/^ *//')
+
+    echo $src
+
+  done
+
+}
+
+################################################
+################################################
+################################################
+
+ROOT=${PWD%/*}
+REPOSITOR_DIR="$ROOT/repositor"
+REPOSITOR_CONF="$REPOSITOR_DIR/repositor.conf"
+
+if [ ! -f "$REPOSITOR_CONF" ]; then
+  echo "Repositor configuration not found. Please define the repositor.conf file"
+  exit 1
+fi
+
+##### GLOBAL ACTIONS
+
+# Global action is the first argument
+GLOBAL_ACTION="$1"
+
+# Show help if no argument specified
+if [ -z "$1" ]; then
+  GLOBAL_ACTION="--help"
+fi
+
+# Handle global actions
+case "$GLOBAL_ACTION" in
+
+  # Show repositor version
+  --version)
+    show_version
+    exit 0;
+    ;;
+
+  # Show repositor help
+  --help)
+    show_help
+    exit 0
+    ;;
+
+  # List all installed repositories
+  list)
+    count=$(ls -l "$REPOSITOR_DIR" | grep -c ^d | sed 's/ //g')
+    for repository in $(ls -1 "$REPOSITOR_DIR"); do
+      [ -d "$REPOSITOR_DIR/$repository" ] || continue;
+      echo "$repository"
+    done
+    echo "$count repositories found"
+    exit 0
+    ;;
+
+esac
+
+##### REPOSITORY ACTIONS
+
+# Repository Section is the first argument
+# Repository Action is second argument
+SECTION="$1"
+ACTION="$2"
+
+# Show help if no argument specified
+if [ -z "$2" ]; then
+  show_help
+  exit 0
+fi
+
+CONFIG_URL=""
+CONFIG_BRANCH=""
+CONFIG_FILES=()
+
+# Read section configurations
+read_config_section
+
+# Handle action
+case "$ACTION" in
+
+  # Clone a new repository on repositor
+  clone)
+    clone_repository
+    exit 0
+    ;;
+
+  # Update repository
+  update)
+    update_repository
+    exit 0
+    ;;
+
+  # Deploy the repository on repositor
+  deploy)
+    deploy_repository_files
+    exit 0
+    ;;
+
+  # List deployed files of specified repository
+  files)
+    list_repository_files
+    exit 0
+    ;;
+
+  *)
+    show_help
+    echo "Invalid action: $ACTION"
+    exit 1
+
+esac
