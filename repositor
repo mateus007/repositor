@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 SCRIPT=${0##*/}
 IFS=$'\n'
 
@@ -138,6 +138,7 @@ read_config_section(){
 clone_repository(){
 
   echo "Cloning repository '$SECTION' from URL '$CONFIG_URL'..."
+  cd "$REPOSITOR_DIR"
 
   local success=0
   git clone "$CONFIG_URL" "$SECTION" && success=1
